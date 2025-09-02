@@ -18,24 +18,6 @@ public class Function
     {
         _serviceScopeFactory = Startup.ConfigureAndGetServiceScopeFactory();
     }
-
-    // [FunctionName("ValidationAccounts")]
-    // public async Task Run([TimerTrigger("* */30 * * * *")] TimerInfo myTimer)
-    // {
-    //     try
-    //     {
-    //         _logger.LogInformation($"ValidationAccounts TimerTrigger activated: {myTimer}");
-    //
-    //         var result = await _accountService.ExecuteValidationAccount();
-    //
-    //         if (result == true)
-    //             _logger.LogInformation($"Account(s) validation finished: {DateTime.Now}");
-    //     }
-    //     catch (Exception ex)
-    //     {
-    //         _logger.LogError(ex, "Error: Unable to validate accounts process!");
-    //     }
-    // }
     
     [LambdaSerializer(typeof(Amazon.Lambda.Serialization.SystemTextJson.DefaultLambdaJsonSerializer))]
     public async Task FunctionHandler(object input, ILambdaContext context)
