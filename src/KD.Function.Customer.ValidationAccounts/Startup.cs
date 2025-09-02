@@ -84,7 +84,7 @@ public class Startup
         // configure entity framework
         _services.AddDbContext<DataContext>(options =>
             {
-                options.UseSqlServer(Environment.GetEnvironmentVariable("DB_CONN_STRING"),
+                options.UseSqlServer(_configuration["DB_CONN_STRING"],
                     sqlOptions => sqlOptions.MigrationsAssembly(typeof(Startup).GetTypeInfo().Assembly.GetName().Name));
             }, ServiceLifetime.Scoped);
 
