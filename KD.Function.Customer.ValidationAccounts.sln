@@ -9,6 +9,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KD.Function.Customer.Valida
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KD.Function.Customer.ValidationAccounts.Services", "src\KD.Function.Customer.ValidationAccounts.Services\KD.Function.Customer.ValidationAccounts.Services.csproj", "{A997086B-BFCD-47BD-B505-E3AE8ED13E87}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Function", "Function", "{D87343F8-0BC8-41E9-8FAA-5AADBBF3C2EC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,5 +35,10 @@ Global
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {94AC00E6-5CAB-4FAA-9DA7-CC7ABECC6652}
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{A54060D5-7B6C-4C97-B949-12E6819281E1} = {D87343F8-0BC8-41E9-8FAA-5AADBBF3C2EC}
+		{4EAE9B2C-5A34-4FB6-9615-C0568FA655F5} = {D87343F8-0BC8-41E9-8FAA-5AADBBF3C2EC}
+		{A997086B-BFCD-47BD-B505-E3AE8ED13E87} = {D87343F8-0BC8-41E9-8FAA-5AADBBF3C2EC}
 	EndGlobalSection
 EndGlobal
