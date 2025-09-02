@@ -11,6 +11,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "KD.Function.Customer.Valida
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Function", "Function", "{D87343F8-0BC8-41E9-8FAA-5AADBBF3C2EC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KD.Function.Customer.ValidationAccounts.RunLocal", "src\KD.Function.Customer.ValidationAccounts.RunLocal\KD.Function.Customer.ValidationAccounts.RunLocal.csproj", "{63C957BC-6BCD-4C74-8262-2446B6F9B0AB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -29,6 +31,10 @@ Global
 		{A997086B-BFCD-47BD-B505-E3AE8ED13E87}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A997086B-BFCD-47BD-B505-E3AE8ED13E87}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A997086B-BFCD-47BD-B505-E3AE8ED13E87}.Release|Any CPU.Build.0 = Release|Any CPU
+		{63C957BC-6BCD-4C74-8262-2446B6F9B0AB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{63C957BC-6BCD-4C74-8262-2446B6F9B0AB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{63C957BC-6BCD-4C74-8262-2446B6F9B0AB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{63C957BC-6BCD-4C74-8262-2446B6F9B0AB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
