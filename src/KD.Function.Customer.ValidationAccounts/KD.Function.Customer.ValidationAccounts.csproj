@@ -4,6 +4,7 @@
         <AWSProjectType>Lambda</AWSProjectType>
         <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
         <PublishReadyToRun>true</PublishReadyToRun>
+        <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     </PropertyGroup>
     <ItemGroup>
         <PackageReference Include="Amazon.Lambda.Core" Version="2.7.0"/>

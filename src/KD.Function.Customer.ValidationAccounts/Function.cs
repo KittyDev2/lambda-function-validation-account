@@ -19,7 +19,6 @@ public class Function
         _serviceScopeFactory = Startup.ConfigureAndGetServiceScopeFactory();
     }
     
-    [LambdaSerializer(typeof(Amazon.Lambda.Serialization.SystemTextJson.DefaultLambdaJsonSerializer))]
     public async Task FunctionHandler(object input, ILambdaContext context)
     {
         try
