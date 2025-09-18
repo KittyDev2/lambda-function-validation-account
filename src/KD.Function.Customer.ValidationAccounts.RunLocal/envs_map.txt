@@ -1,0 +1,3 @@
+DOTNET_ENVIRONMENT=Development
+AWS_SECRET_NAMES=kd-function-customer-validation-accounts
+DB_CONN_STRING=Server=tcp:db_host,1433;Initial Catalog=db_name;Persist Security Info=False;User db_user;Password=db_pwd;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;
