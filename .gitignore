@@ -268,3 +268,6 @@ __pycache__/
 
 # Mac OS
 .DS_Store
+
+# Environment variable files
+.env
