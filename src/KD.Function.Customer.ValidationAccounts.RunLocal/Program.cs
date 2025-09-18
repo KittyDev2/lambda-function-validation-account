@@ -5,11 +5,10 @@ public class Program
 {
     public static async Task Main(string[] args)
     {       
+        DotNetEnv.Env.Load();
         var function = new Function();
         var context = new TestLambdaContext();
-            
         await function.FunctionHandler(new { }, context);
-            
         Console.WriteLine("Function executed successfully!");
     }
 }
