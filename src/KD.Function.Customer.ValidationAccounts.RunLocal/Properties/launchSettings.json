@@ -2,10 +2,7 @@
   "profiles": {   
     "KD.Function.Customer.ValidationAccounts.RunLocal": {
       "commandName": "Project",      
-      "environmentVariables": {
-        "DOTNET_ENVIRONMENT": "Development",        
-        "AWS_SECRET_NAMES": "kd-function-customer-validation-accounts",
-        "DB_CONN_STRING": ""        
+      "environmentVariables": {             
       }      
     }
   }
