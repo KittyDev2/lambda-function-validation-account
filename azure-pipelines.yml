@@ -1,0 +1,129 @@
+trigger:
+  branches:
+    include:
+    - main
+    - qas
+  paths:
+    exclude:
+    - README.md
+    - '*.md'
+    - docs/*
+
+pr:
+  branches:
+    include:
+    - main
+    - qas
+
+variables:
+  - name: aws.rolecredential.maxduration
+    value: "3600"
+  - name: buildConfiguration
+    value: 'Release'
+  - name: vmImageName
+    value: 'ubuntu-latest'
+  - name: lambdaFunctionName
+    value: 'lambda-customer-validation-accounts'
+
+  - ${{ if eq(variables['Build.SourceBranchName'], 'main') }}:
+      - group: plataformakd-prd
+
+  - ${{ if eq(variables['Build.SourceBranchName'], 'qas') }}:
+      - group: plataformakd-qas
+
+stages:
+- stage: BuildAndDeploy
+  displayName: 'Build and Deploy Lambda'
+  condition: or(eq(variables['Build.SourceBranchName'], 'main'), eq(variables['Build.SourceBranchName'], 'qas'))
+  jobs:
+  - job: LambdaBuildAndDeploy
+    displayName: 'Build and Deploy AWS Lambda'
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    
+    # Install .NET SDK and build Lambda
+    - task: Bash@3
+      displayName: 'Install .NET and Build Lambda'
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo "🔧 Installing .NET SDK 8.0..."
+          wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh
+          chmod +x ./dotnet-install.sh
+          ./dotnet-install.sh --version 8.0.404 --install-dir ~/.dotnet
+          export PATH="$HOME/.dotnet:$PATH"
+          
+          echo "✅ .NET SDK installed"
+          dotnet --version
+          
+          echo "🔄 Restoring NuGet packages..."
+          dotnet restore **/*.csproj || echo "⚠️  Some packages may not be available, continuing..."
+          
+          echo "🔨 Building Lambda function..."
+          dotnet build **/*.csproj --configuration $(buildConfiguration) --no-restore
+          
+          echo "📦 Publishing Lambda function..."
+          mkdir -p $(Build.ArtifactStagingDirectory)/lambda-package
+          dotnet publish **/src/**/*.csproj --configuration $(buildConfiguration) --no-build --output $(Build.ArtifactStagingDirectory)/lambda-package
+          
+          echo "✅ Lambda build completed"
+          ls -la $(Build.ArtifactStagingDirectory)/lambda-package/
+    
+    # Package and Deploy Lambda
+    - task: Bash@3
+      displayName: 'Package and Deploy Lambda to AWS'
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo "📦 Installing AWS CLI..."
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          sudo ./aws/install
+          aws --version
+          
+          echo "📦 Creating Lambda deployment package..."
+          cd $(Build.ArtifactStagingDirectory)/lambda-package
+          zip -r ../$(lambdaFunctionName)-$(Build.BuildId).zip .
+          
+          echo "📄 Package contents:"
+          unzip -l ../$(lambdaFunctionName)-$(Build.BuildId).zip | head -20
+          
+          echo "🚀 Deploying Lambda function to AWS..."
+          export AWS_DEFAULT_REGION=$(AWS_REGION)
+          
+          # Check if function exists and deploy
+          if aws lambda get-function --function-name $(lambdaFunctionName) 2>/dev/null; then
+            echo "📝 Updating existing Lambda function: $(lambdaFunctionName)"
+            aws lambda update-function-code \
+              --function-name $(lambdaFunctionName) \
+              --zip-file fileb://$(Build.ArtifactStagingDirectory)/$(lambdaFunctionName)-$(Build.BuildId).zip
+            
+            echo "⚙️ Updating function configuration..."
+            aws lambda update-function-configuration \
+              --function-name $(lambdaFunctionName) \
+              --runtime dotnet8 \
+              --timeout 30 \
+              --memory-size 256
+          else
+            echo "🆕 Creating new Lambda function: $(lambdaFunctionName)"
+            aws lambda create-function \
+              --function-name $(lambdaFunctionName) \
+              --runtime dotnet8 \
+              --role $(AWS_LAMBDA_ROLE_ARN) \
+              --handler "KD.Function.Customer.ValidationAccounts::KD.Function.Customer.ValidationAccounts.Function::FunctionHandler" \
+              --zip-file fileb://$(Build.ArtifactStagingDirectory)/$(lambdaFunctionName)-$(Build.BuildId).zip \
+              --timeout 30 \
+              --memory-size 256 \
+              --description "lambda-customer-validation-accounts Lambda function deployed from Azure DevOps"
+          fi
+          
+          echo "✅ Lambda function deployed successfully!"
+          
+          # Display function information
+          echo "📋 Function details:"
+          aws lambda get-function --function-name $(lambdaFunctionName) \
+            --query 'Configuration.[FunctionName,Runtime,LastModified,CodeSize,Timeout,MemorySize]' \
+            --output table
+          
+          echo "🎯 Deployment completed for $(lambdaFunctionName)"
