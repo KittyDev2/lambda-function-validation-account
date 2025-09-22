@@ -42,6 +42,10 @@ stages:
       vmImage: $(vmImageName)
     steps:
     
+    # Authenticate with Azure Artifacts
+    - task: NuGetAuthenticate@1
+      displayName: 'NuGet Authenticate'
+    
     # Install .NET SDK and build Lambda
     - task: Bash@3
       displayName: 'Install .NET and Build Lambda'
@@ -58,8 +62,8 @@ stages:
           dotnet --version
           
           echo "🔧 Adding private NuGet sources..."
-          dotnet nuget add source https://pkgs.dev.azure.com/COMERCIALAUTOMOTIVA/PlataformaKD/_packaging/KDUtils_Feed/nuget/v3/index.json --name "kdutil" || echo "Source kdutil already exists"
-          dotnet nuget add source https://pkgs.dev.azure.com/COMERCIALAUTOMOTIVA/PlataformaKD-AWS/_packaging/KDutils_feed_aws/nuget/v3/index.json --name "kdutils-aws" || echo "Source kdutils-aws already exists"
+          dotnet nuget add source https://pkgs.dev.azure.com/COMERCIALAUTOMOTIVA/PlataformaKD/_packaging/KDUtils_Feed/nuget/v3/index.json --name "kdutil"
+          dotnet nuget add source https://pkgs.dev.azure.com/COMERCIALAUTOMOTIVA/PlataformaKD-AWS/_packaging/KDutils_feed_aws/nuget/v3/index.json --name "kdutils-aws"
           
           echo "🔄 Restoring NuGet packages..."
           dotnet restore KD.Function.Customer.ValidationAccounts.sln
