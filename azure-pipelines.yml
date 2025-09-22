@@ -56,7 +56,11 @@ stages:
           
           echo "✅ .NET SDK installed"
           dotnet --version
-
+          
+          echo "🔧 Adding private NuGet sources..."
+          dotnet nuget add source https://pkgs.dev.azure.com/COMERCIALAUTOMOTIVA/PlataformaKD/_packaging/KDUtils_Feed/nuget/v3/index.json --name "kdutil" || echo "Source kdutil already exists"
+          dotnet nuget add source https://pkgs.dev.azure.com/COMERCIALAUTOMOTIVA/PlataformaKD-AWS/_packaging/KDutils_feed_aws/nuget/v3/index.json --name "kdutils-aws" || echo "Source kdutils-aws already exists"
+          
           echo "🔄 Restoring NuGet packages..."
           dotnet restore KD.Function.Customer.ValidationAccounts.sln
           
