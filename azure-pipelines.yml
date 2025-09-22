@@ -56,16 +56,16 @@ stages:
           
           echo "✅ .NET SDK installed"
           dotnet --version
-          
+
           echo "🔄 Restoring NuGet packages..."
-          dotnet restore **/*.csproj || echo "⚠️  Some packages may not be available, continuing..."
+          dotnet restore KD.Function.Customer.ValidationAccounts.sln
           
           echo "🔨 Building Lambda function..."
-          dotnet build **/*.csproj --configuration $(buildConfiguration) --no-restore
+          dotnet build KD.Function.Customer.ValidationAccounts.sln --configuration $(buildConfiguration) --no-restore
           
           echo "📦 Publishing Lambda function..."
           mkdir -p $(Build.ArtifactStagingDirectory)/lambda-package
-          dotnet publish **/src/**/*.csproj --configuration $(buildConfiguration) --no-build --output $(Build.ArtifactStagingDirectory)/lambda-package
+          dotnet publish src/KD.Function.Customer.ValidationAccounts/KD.Function.Customer.ValidationAccounts.csproj --configuration $(buildConfiguration) --no-build --output $(Build.ArtifactStagingDirectory)/lambda-package
           
           echo "✅ Lambda build completed"
           ls -la $(Build.ArtifactStagingDirectory)/lambda-package/
