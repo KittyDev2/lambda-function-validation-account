@@ -42,41 +42,69 @@ stages:
       vmImage: $(vmImageName)
     steps:
     
-    # Authenticate with Azure Artifacts
-    - task: NuGetAuthenticate@1
-      displayName: 'NuGet Authenticate'
-    
-    # Install .NET SDK and build Lambda
+    # Limpar cache antigo
     - task: Bash@3
-      displayName: 'Install .NET and Build Lambda'
+      displayName: 'Clear NuGet Cache'
       inputs:
         targetType: 'inline'
         script: |
-          echo "🔧 Installing .NET SDK 8.0..."
-          wget https://dot.net/v1/dotnet-install.sh -O dotnet-install.sh
-          chmod +x ./dotnet-install.sh
-          ./dotnet-install.sh --version 8.0.404 --install-dir ~/.dotnet
-          export PATH="$HOME/.dotnet:$PATH"
+          dotnet nuget locals all --clear
+
+    # Autenticação nativa
+    - task: NuGetAuthenticate@1
+      displayName: 'Authenticate with Azure Artifacts'
+
+    # Usar tasks nativas do Azure DevOps
+    - task: UseDotNet@2
+      displayName: 'Install .NET SDK 8.0'
+      inputs:
+        packageType: 'sdk'
+        version: '8.0.x'
+
+    # Tentativa 1: Restore nativo
+    - task: DotNetCoreCLI@2
+      displayName: 'Restore NuGet Packages (Native)'
+      inputs:
+        command: 'restore'
+        projects: 'KD.Function.Customer.ValidationAccounts.sln'
+        feedsToUse: 'select'
+        vstsFeed: 'KDUtils_Feed,KDutils_feed_aws'
+        includeNuGetOrg: true
+        verbosityRestore: 'Normal'
+      continueOnError: true
+
+    # Fallback: Se falhar, usar configuração manual
+    - task: Bash@3
+      displayName: 'Fallback: Manual Source Configuration'
+      condition: failed()
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo "⚠️ Native restore failed, trying manual configuration..."
           
-          echo "✅ .NET SDK installed"
-          dotnet --version
+          dotnet nuget add source "https://pkgs.dev.azure.com/COMERCIALAUTOMOTIVA/PlataformaKD/_packaging/KDUtils_Feed/nuget/v3/index.json" \
+            --name "KDUtils_Feed"
           
-          echo "🔧 Adding private NuGet sources..."
-          dotnet nuget add source https://pkgs.dev.azure.com/COMERCIALAUTOMOTIVA/PlataformaKD/_packaging/KDUtils_Feed/nuget/v3/index.json --name "kdutil"
-          dotnet nuget add source https://pkgs.dev.azure.com/COMERCIALAUTOMOTIVA/PlataformaKD-AWS/_packaging/KDutils_feed_aws/nuget/v3/index.json --name "kdutils-aws"
+          dotnet nuget add source "https://pkgs.dev.azure.com/COMERCIALAUTOMOTIVA/PlataformaKD-AWS/_packaging/KDutils_feed_aws/nuget/v3/index.json" \
+            --name "KDutils_feed_aws"
           
-          echo "🔄 Restoring NuGet packages..."
-          dotnet restore KD.Function.Customer.ValidationAccounts.sln
-          
-          echo "🔨 Building Lambda function..."
-          dotnet build KD.Function.Customer.ValidationAccounts.sln --configuration $(buildConfiguration) --no-restore
-          
-          echo "📦 Publishing Lambda function..."
-          mkdir -p $(Build.ArtifactStagingDirectory)/lambda-package
-          dotnet publish src/KD.Function.Customer.ValidationAccounts/KD.Function.Customer.ValidationAccounts.csproj --configuration $(buildConfiguration) --no-build --output $(Build.ArtifactStagingDirectory)/lambda-package
-          
-          echo "✅ Lambda build completed"
-          ls -la $(Build.ArtifactStagingDirectory)/lambda-package/
+          dotnet restore KD.Function.Customer.ValidationAccounts.sln --force
+
+    # Build normalmente
+    - task: DotNetCoreCLI@2
+      displayName: 'Build Solution'
+      inputs:
+        command: 'build'
+        projects: 'KD.Function.Customer.ValidationAccounts.sln'
+        arguments: '--configuration $(buildConfiguration) --no-restore'
+
+    # Publish Lambda
+    - task: DotNetCoreCLI@2
+      displayName: 'Publish Lambda Function'
+      inputs:
+        command: 'publish'
+        projects: 'src/KD.Function.Customer.ValidationAccounts/KD.Function.Customer.ValidationAccounts.csproj'
+        arguments: '--configuration $(buildConfiguration) --no-build --output $(Build.ArtifactStagingDirectory)/lambda-package'
     
     # Package and Deploy Lambda
     - task: Bash@3
