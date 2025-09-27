@@ -38,6 +38,8 @@ stages:
   jobs:
   - job: LambdaBuildAndDeploy
     displayName: 'Build and Deploy AWS Lambda'
+    timeoutInMinutes: "5"
+    cancelTimeoutInMinutes: "5"
     pool:
       vmImage: $(vmImageName)
     steps:
@@ -53,6 +55,9 @@ stages:
     # Autenticação nativa
     - task: NuGetAuthenticate@1
       displayName: 'Authenticate with Azure Artifacts'
+      inputs:
+        nuGetServiceConnections: 'SCNuget'
+        forceReinstallCredentialProvider: true
 
     # Usar tasks nativas do Azure DevOps
     - task: UseDotNet@2
