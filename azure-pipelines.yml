@@ -44,127 +44,105 @@ stages:
       vmImage: $(vmImageName)
     steps:
     
-    # Limpar cache antigo
-    - task: Bash@3
-      displayName: 'Clear NuGet Cache'
+    - task: UseDotNet@2
+      displayName: 'Install .NET 8.0 SDK'
       inputs:
-        targetType: 'inline'
-        script: |
-          dotnet nuget locals all --clear
+        packageType: 'sdk'
+        version: '8.0.x'
+        includePreviewVersions: false
 
-    # Autenticação nativa
     - task: NuGetAuthenticate@1
       displayName: 'Authenticate with Azure Artifacts'
       inputs:
         nuGetServiceConnections: 'SCNuget'
         forceReinstallCredentialProvider: true
 
-    # Usar tasks nativas do Azure DevOps
-    - task: UseDotNet@2
-      displayName: 'Install .NET SDK 8.0'
-      inputs:
-        packageType: 'sdk'
-        version: '8.0.x'
-
-    # Tentativa 1: Restore nativo
     - task: DotNetCoreCLI@2
-      displayName: 'Restore NuGet Packages (Native)'
+      displayName: 'Restore NuGet packages'
       inputs:
         command: 'restore'
         projects: 'KD.Function.Customer.ValidationAccounts.sln'
-        feedsToUse: 'select'
-        vstsFeed: 'KDUtils_Feed,KDutils_feed_aws'
+        feedsToUse: 'config'
+        nugetConfigPath: 'nuget.config'
         includeNuGetOrg: true
-        verbosityRestore: 'Normal'
-      continueOnError: true
 
-    # Fallback: Se falhar, usar configuração manual
-    - task: Bash@3
-      displayName: 'Fallback: Manual Source Configuration'
-      condition: failed()
-      inputs:
-        targetType: 'inline'
-        script: |
-          echo "⚠️ Native restore failed, trying manual configuration..."
-          
-          dotnet nuget add source "https://pkgs.dev.azure.com/COMERCIALAUTOMOTIVA/PlataformaKD/_packaging/KDUtils_Feed/nuget/v3/index.json" \
-            --name "KDUtils_Feed"
-          
-          dotnet nuget add source "https://pkgs.dev.azure.com/COMERCIALAUTOMOTIVA/PlataformaKD-AWS/_packaging/KDutils_feed_aws/nuget/v3/index.json" \
-            --name "KDutils_feed_aws"
-          
-          dotnet restore KD.Function.Customer.ValidationAccounts.sln --force
-
-    # Build normalmente
     - task: DotNetCoreCLI@2
-      displayName: 'Build Solution'
+      displayName: 'Build Lambda function'
       inputs:
         command: 'build'
         projects: 'KD.Function.Customer.ValidationAccounts.sln'
         arguments: '--configuration $(buildConfiguration) --no-restore'
 
-    # Publish Lambda
     - task: DotNetCoreCLI@2
-      displayName: 'Publish Lambda Function'
+      displayName: 'Publish Lambda function'
       inputs:
         command: 'publish'
+        publishWebProjects: false
         projects: 'src/KD.Function.Customer.ValidationAccounts/KD.Function.Customer.ValidationAccounts.csproj'
-        arguments: '--configuration $(buildConfiguration) --no-build --output $(Build.ArtifactStagingDirectory)/lambda-package'
-    
-    # Package and Deploy Lambda
-    - task: Bash@3
-      displayName: 'Package and Deploy Lambda to AWS'
+        arguments: '-c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)/lambda-package --no-restore --no-build'
+        zipAfterPublish: false
+    - task: PowerShell@2
+      displayName: 'Verify Lambda Package Contents'
       inputs:
         targetType: 'inline'
         script: |
-          echo "📦 Installing AWS CLI..."
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          unzip awscliv2.zip
-          sudo ./aws/install
-          aws --version
-          
-          echo "📦 Creating Lambda deployment package..."
-          cd $(Build.ArtifactStagingDirectory)/lambda-package
-          zip -r ../$(lambdaFunctionName)-$(Build.BuildId).zip .
-          
-          echo "📄 Package contents:"
-          unzip -l ../$(lambdaFunctionName)-$(Build.BuildId).zip | head -20
-          
+          Write-Host "📦 Verifying Lambda deployment package contents..."
+          $packagePath = "$(Build.ArtifactStagingDirectory)/lambda-package"
+          $actualPath = "$packagePath/KD.Function.Customer.ValidationAccounts"
+
+          # Check directory structure
+          Write-Host "Directory structure in $packagePath..."
+          Get-ChildItem -Path $packagePath -Recurse | Select-Object Name, FullName | Format-Table
+
+          Write-Host "Checking actual Lambda files in $actualPath..."
+          if (Test-Path $actualPath) {
+            Get-ChildItem -Path $actualPath | Select-Object Name, FullName | Format-Table
+          }
+
+          # Verify .deps.json exists in the actual path
+          $depsFile = Get-ChildItem -Path $actualPath -Filter "*.deps.json" -ErrorAction SilentlyContinue
+          if ($depsFile) {
+            Write-Host "✅ Found .deps.json file: $($depsFile.FullName)"
+          } else {
+            Write-Error "❌ Missing .deps.json file in $actualPath!"
+            exit 1
+          }
+
+          # Verify main DLL exists
+          $dllFile = Get-ChildItem -Path $actualPath -Filter "*.dll" -ErrorAction SilentlyContinue | Where-Object { $_.Name -like "*ValidationAccounts*" }
+          if ($dllFile) {
+            Write-Host "✅ Found main DLL: $($dllFile.FullName)"
+          } else {
+            Write-Error "❌ Missing main DLL file in $actualPath!"
+            exit 1
+          }
+
+    - task: ArchiveFiles@2
+      displayName: 'Create Lambda ZIP Package'
+      inputs:
+        rootFolderOrFile: '$(Build.ArtifactStagingDirectory)/lambda-package/KD.Function.Customer.ValidationAccounts'
+        includeRootFolder: false
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/$(lambdaFunctionName)-$(Build.BuildId).zip'
+        replaceExistingArchive: true
+        verbose: true
+
+    - task: AWSShellScript@1
+      displayName: 'Deploy Lambda Function to AWS'
+      inputs:
+        awsCredentials: $(serviceConnection)
+        regionName: $(AWS_REGION)
+        scriptType: inline
+        inlineScript: |
           echo "🚀 Deploying Lambda function to AWS..."
-          export AWS_DEFAULT_REGION=$(AWS_REGION)
-          
-          # Check if function exists and deploy
-          if aws lambda get-function --function-name $(lambdaFunctionName) 2>/dev/null; then
-            echo "📝 Updating existing Lambda function: $(lambdaFunctionName)"
-            aws lambda update-function-code \
-              --function-name $(lambdaFunctionName) \
-              --zip-file fileb://$(Build.ArtifactStagingDirectory)/$(lambdaFunctionName)-$(Build.BuildId).zip
-            
-            echo "⚙️ Updating function configuration..."
-            aws lambda update-function-configuration \
-              --function-name $(lambdaFunctionName) \
-              --runtime dotnet8 \
-              --timeout 30 \
-              --memory-size 256
-          else
-            echo "🆕 Creating new Lambda function: $(lambdaFunctionName)"
-            aws lambda create-function \
-              --function-name $(lambdaFunctionName) \
-              --runtime dotnet8 \
-              --role $(AWS_LAMBDA_ROLE_ARN) \
-              --handler "KD.Function.Customer.ValidationAccounts::KD.Function.Customer.ValidationAccounts.Function::FunctionHandler" \
-              --zip-file fileb://$(Build.ArtifactStagingDirectory)/$(lambdaFunctionName)-$(Build.BuildId).zip \
-              --timeout 30 \
-              --memory-size 256 \
-              --description "lambda-customer-validation-accounts Lambda function deployed from Azure DevOps"
-          fi
-          
+
+          # Deploy the Lambda function
+          ZIP_FILE="$(Build.ArtifactStagingDirectory)/$(lambdaFunctionName)-$(Build.BuildId).zip"
+          echo "Deploying with zip file: $ZIP_FILE"
+
+          aws lambda update-function-code \
+            --function-name $(lambdaFunctionName) \
+            --zip-file "fileb://$ZIP_FILE" \
+            --region $(AWS_REGION)
+
           echo "✅ Lambda function deployed successfully!"
-          
-          # Display function information
-          echo "📋 Function details:"
-          aws lambda get-function --function-name $(lambdaFunctionName) \
-            --query 'Configuration.[FunctionName,Runtime,LastModified,CodeSize,Timeout,MemorySize]' \
-            --output table
-          
-          echo "🎯 Deployment completed for $(lambdaFunctionName)"
